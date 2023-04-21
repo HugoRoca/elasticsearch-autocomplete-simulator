@@ -1,132 +1,49 @@
 const express = require('express');
 const elasticsearch = require('elasticsearch');
 const path = require('path');
+const config = require('./config')
+const crudElastic = require('./elasticsearch/createIndex')
 
 const app = express();
-const client = new elasticsearch.Client({ host: 'localhost:9200' });
-
-const products = [
-  {
-    id: 1,
-    nombre: 'Camiseta',
-    nombre_sugerido: {
-      input: ['Camiseta', 'Ropa', 'Hombre'],
-      weight: 3
-    }
-  },
-  {
-    id: 2,
-    nombre: 'Pantalón',
-    nombre_sugerido: {
-      input: ['Pantalón', 'Ropa', 'Hombre'],
-      weight: 3
-    }
-  },
-  {
-    id: 3,
-    nombre: 'Zapatillas',
-    nombre_sugerido: {
-      input: ['Zapatillas', 'Calzado', 'Hombre'],
-      weight: 3
-    }
-  },
-  {
-    id: 4,
-    nombre: 'Vestido',
-    nombre_sugerido: {
-      input: ['Vestido', 'Ropa', 'Mujer'],
-      weight: 3
-    }
-  },
-  {
-    id: 5,
-    nombre: 'Zapatos',
-    nombre_sugerido: {
-      input: ['Zapatos', 'Calzado', 'Mujer'],
-      weight: 3
-    }
-  }
-];
-
-const createIndex = async (index) => {
-  try {
-    const exists = await client.indices.exists({ index });
-
-    if (exists) {
-      await client.indices.delete({ index });
-    }
-
-    await client.indices.create({
-      index,
-      body: {
-        mappings: {
-          properties: {
-            nombre: { type: 'text' },
-            nombre_sugerido: { type: 'search_as_you_type' }
-          }
-        }
-      }
-    });
-
-    console.log(`Índice ${index} creado con éxito.`);
-  } catch (error) {
-    console.error(error);
-  }
-};
-
-const bulkIndex = async (index, data) => {
-  let bulkBody = [];
-
-  data.forEach(item => {
-    bulkBody.push({
-      index: {
-        _index: index,
-        _id: item.id
-      }
-    });
-
-    bulkBody.push(item);
-  });
-
-  await client.bulk({ body: bulkBody });
-};
-
-const indexName = 'productos';
 
 (async () => {
-  await createIndex(indexName);
-  await bulkIndex(indexName, products);
+  // await crudElastic.createIndex(config.indexName_completion, 'completion');
+  // await crudElastic.bulkIndex(config.indexName_completion)
+
+  // await crudElastic.createIndex(config.indexName_search, 'search_as_you_type');
+  // await crudElastic.bulkIndex(config.indexName_search)
 })();
 
-app.get('/autocomplete/:query', async (req, res) => {
+app.get('/autocomplete_completion/:query', async (req, res) => {
   const query = req.params.query;
   
   try {
-    const result = await client.search({
-      index: 'productos',
-      body: {
-        suggest: {
-          suggestions: {
-            prefix: query,
-            completion: {
-              field: 'nombre_sugerido'
-            }
-          }
-        }
-      }
-    });
-    
-    const suggestions = result.suggest.suggestions[0].options.map(option => option.text);
-    
+    const suggestions = await crudElastic.search_completion(query)
+
     res.json(suggestions);
   } catch (error) {
     console.error(error);
-    res.status(500).send('Error en el servidor');
+    res.status(500).send('Something wrong');
   }
 });
 
-app.use(express.static(path.join(__dirname, 'static')));
+app.get('/autocomplete_search/:query', async (req, res) => {
+  const query = req.params.query;
+  
+  try {
+    const suggestions = await crudElastic.search_search_as_you_type(query)
+
+    res.json(suggestions);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('Something wrong');
+  }
+});
+
+app.use(express.static(path.join(__dirname, '../public')));
+
+console.log("__dirname", __dirname)
 
 app.listen(3000, () => {
-  console.log('Servidor iniciado en el puerto 3000');
+  console.log('Is running on port 3000');
 });

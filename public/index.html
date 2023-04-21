@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autocomplete con Elasticsearch</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+
+<body>
+  <div id="app" class="container mt-5">
+    <h1 class="display-4">Demo autocomplete</h1>
+    <blockquote class="blockquote text-center">
+      <p class="mb-0">POC for terms "completion" and "search_as_you_type".</p>
+      <footer class="blockquote-footer">Is executed from the 3rd character.</cite></footer>
+    </blockquote>
+    <div class="form-group">
+      <input type="text" class="form-control" id="searchTerm" v-model="searchTerm" @keyup="search">
+    </div>
+    <div class="row">
+      <div class="col">
+        <h5>Term: Completion</h5>
+        <div class="list-group" v-if="searchResults.length > 0">
+          <a href="#" class="list-group-item list-group-item-action" v-for="result in searchResults">{{ result }}</a>
+        </div>
+      </div>
+      <div class="col">
+        <h5>Term: search_as_you_type</h5>
+        <div class="list-group" v-if="searchResults2.length > 0">
+          <a href="#" class="list-group-item list-group-item-action" v-for="result in searchResults2">{{ result }}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        searchTerm: '',
+        searchResults: [],
+        searchResults2: []
+      },
+      methods: {
+        search: function () {
+          this.searchResults = [];
+          if (this.searchTerm.length > 2) {
+            axios.get('http://localhost:3000/autocomplete_completion/' + this.searchTerm)
+              .then(response => {
+                this.searchResults = response.data;
+              })
+              .catch(error => {
+                console.log(error);
+              });
+
+
+            axios.get('http://localhost:3000/autocomplete_search/' + this.searchTerm)
+              .then(response => {
+                this.searchResults2 = response.data;
+              })
+              .catch(error => {
+                console.log(error);
+              });
+          } else {
+            this.searchResults = [];
+            this.searchResults2 = [];
+          }
+        }
+      }
+    });
+  </script>
+</body>
+
+</html>
